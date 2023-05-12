@@ -148,20 +148,16 @@ class add_objects_to_group(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
 
-        objects_str = ""
         if len(scene.godot_export_groups) > 0:
+            objects_str = ""
             for i, object in enumerate(context.selected_objects):
                 if object.name not in scene.godot_export_groups[
                         scene.godot_export_groups_index].nodes:
                     node = scene.godot_export_groups[
                         scene.godot_export_groups_index].nodes.add()
                     node.name = object.name
-                    if i == 0:
-                        objects_str += object.name
-                    else:
-                        objects_str += ", "+object.name
-
-            self.report({"INFO"}, "{} added to group.".format(objects_str))
+                    objects_str += object.name if i == 0 else f", {object.name}"
+            self.report({"INFO"}, f"{objects_str} added to group.")
             if self.undo:
                 bpy.ops.ed.undo_push(message="Objects added to group")
         else:
@@ -192,13 +188,10 @@ class del_objects_from_group(bpy.types.Operator):
                     scene.godot_export_groups[
                         scene.godot_export_groups_index].nodes.remove(i)
 
-                    if j == 0:
-                            objects_str += object.name
-                    else:
-                        objects_str += ", "+object.name
+                    objects_str += object.name if j == 0 else f", {object.name}"
                     j += 1
 
-            self.report({"INFO"}, "{} deleted from group.".format(objects_str))
+            self.report({"INFO"}, f"{objects_str} deleted from group.")
             bpy.ops.ed.undo_push(message="Objects deleted from group")
         else:
             self.report({"WARNING"}, "There is no group to delete from.")
@@ -274,11 +267,7 @@ class export_group(bpy.types.Operator):
             new_ob.data = new_mesh_data
         bpy.context.scene.objects.link(new_ob)
 
-        if ob != parent:
-            new_ob.parent = parent
-        else:
-            new_ob.parent = None
-
+        new_ob.parent = parent if ob != parent else None
         for child in ob.children:
             self.copy_object_recursive(child, new_ob, single_user)
         new_ob.select = True
@@ -311,9 +300,7 @@ class export_group(bpy.types.Operator):
             return{"FINISHED"}
 
         for i, object in enumerate(group[self.idx].nodes):
-            if object.name in bpy.data.objects:
-                pass
-            else:
+            if object.name not in bpy.data.objects:
                 group[self.idx].nodes.remove(i)
         bpy.ops.ed.undo_push(message="Clear not existent Group Nodes.")
 
@@ -328,8 +315,7 @@ class export_group(bpy.types.Operator):
             if group[self.idx].export_name.endswith(".dae"):
                 path = os.path.join(path, group[self.idx].export_name)
             else:
-                path = os.path.join(
-                    path, "{}.dae".format(group[self.idx].export_name))
+                path = os.path.join(path, f"{group[self.idx].export_name}.dae")
 
             hide_select = []
             for object in context.scene.objects:
@@ -341,7 +327,7 @@ class export_group(bpy.types.Operator):
             # Make particle duplicates, parent and select them
             nodes_to_be_added = []
             if group[self.idx].use_include_particle_duplicates:
-                for i, object in enumerate(group[self.idx].nodes):
+                for object in group[self.idx].nodes:
                     if bpy.data.objects[object.name].type != "EMPTY":
                         context.scene.objects.active = bpy.data.objects[
                             object.name]
@@ -360,7 +346,7 @@ class export_group(bpy.types.Operator):
                 object.select = True
 
             # Select all other nodes from the group
-            for i, object in enumerate(group[self.idx].nodes):
+            for object in group[self.idx].nodes:
                 if bpy.data.objects[object.name].type == "EMPTY":
                     self.convert_group_to_node(bpy.data.objects[object.name])
                 else:
@@ -389,9 +375,8 @@ class export_group(bpy.types.Operator):
                     self.idx].anim_optimize_precision,
                 use_metadata=group[self.idx].use_metadata)
 
-            self.report({"INFO"},
-                        "\"{}\" Group exported.".format(group[self.idx].name))
-            msg = "Export Group {}".format(group[self.idx].name)
+            self.report({"INFO"}, f'\"{group[self.idx].name}\" Group exported.')
+            msg = f"Export Group {group[self.idx].name}"
 
             bpy.ops.ed.undo_push(message="")
             bpy.ops.ed.undo()
